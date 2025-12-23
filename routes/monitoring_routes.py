@@ -31,9 +31,34 @@ def _unwrap_final_data(payload: dict):
     if isinstance(payload, dict) and "final_data" in payload and isinstance(payload["final_data"], dict):
         return payload["final_data"]
     return payload if isinstance(payload, dict) else {}
+def _calculate_time_consumed(start_time, end_time):
+    """Calculate time consumed in minutes between two timestamps"""
+    if not start_time or not end_time:
+        return None
+    try:
+        if isinstance(start_time, str):
+            start_time = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        if isinstance(end_time, str):
+            end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+        
+        delta = end_time - start_time
+        minutes = delta.total_seconds() / 60
+        return round(minutes, 1)
+    except Exception:
+        return None
 
+def _format_time_only(timestamp):
+    """Format timestamp to show only time (HH:MM AM/PM)"""
+    if not timestamp:
+        return None
+    try:
+        if isinstance(timestamp, str):
+            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        return timestamp.strftime("%I:%M %p")
+    except Exception:
+        return None
 # ==========================================================
-# ✅ API 1: Fetch Monitoring Table Data
+# âœ… API 1: Fetch Monitoring Table Data
 # ==========================================================
 @monitoring_bp.route("/api/monitoring", methods=["GET"])
 def get_monitoring_data():
@@ -59,7 +84,11 @@ def get_monitoring_data():
                 d.data_extraction_status,
                 d.erp_entry_status,
                 d.vehicle_hire_status,
-                d.extracted_json
+                d.extracted_json,
+                d.data_extraction_start_time,
+                d.data_extraction_end_time,
+                d.erp_entry_start_time,
+                d.erp_entry_end_time
             FROM doc_processing_log d
             LEFT JOIN clients c ON d.client_id = c.client_id
             LEFT JOIN doc_formats f ON d.doc_format_id = f.doc_format_id
@@ -103,6 +132,10 @@ def get_monitoring_data():
                 erp_status,
                 vh_status,
                 extracted_json,
+                de_start,
+                de_end,
+                erp_start,
+                erp_end,
             ) = r
 
             uploaded_on = (
@@ -144,13 +177,19 @@ def get_monitoring_data():
                     "vehicle_hire_status": vh_status,
                     "invoice_no": invoice_no,
                     "extracted_json": extracted_json,
+                    "data_extraction_start_time": _format_time_only(de_start),
+                    "data_extraction_end_time": _format_time_only(de_end),
+                    "data_extraction_time_consumed": _calculate_time_consumed(de_start, de_end),
+                    "erp_entry_start_time": _format_time_only(erp_start),
+                    "erp_entry_end_time": _format_time_only(erp_end),
+                    "erp_entry_time_consumed": _calculate_time_consumed(erp_start, erp_end),
                 }
             )
 
         return jsonify({"status": "success", "data": data}), 200
 
     except Exception as e:
-        print("❌ Monitoring Data Error:", str(e))
+        print("âŒ Monitoring Data Error:", str(e))
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
     
@@ -161,7 +200,7 @@ def get_monitoring_data():
 
 
 # ==========================================================
-# ✅ API 2: Stream PDF from Filesystem (with DB fallback)
+# âœ… API 2: Stream PDF from Filesystem (with DB fallback)
 #    URL: GET /api/monitoring/<doc_id>/file
 #    Reads: saved_path (filesystem) first, then file_data (DB) as fallback
 # ==========================================================
@@ -200,7 +239,7 @@ def stream_doc_file(doc_id):
                     max_age=0,
                 )
             else:
-                print(f"⚠️ File not found at {file_full_path}, falling back to DB")
+                print(f"âš ï¸ File not found at {file_full_path}, falling back to DB")
         
         # Fallback to DB (for legacy records)
         if not file_data:
@@ -216,7 +255,7 @@ def stream_doc_file(doc_id):
             max_age=0,
         )
     except Exception as e:
-        print("❌ Stream File Error:", str(e))
+        print("âŒ Stream File Error:", str(e))
         traceback.print_exc()
         if conn:
             release_connection(conn)
@@ -224,7 +263,7 @@ def stream_doc_file(doc_id):
 
 
 # ==========================================================
-# ✅ API 3: Fetch Single Document Details
+# âœ… API 3: Fetch Single Document Details
 #    - Sets file_url to our new /api/monitoring/<id>/file (DB stream)
 # ==========================================================
 @monitoring_bp.route("/api/monitoring/<int:doc_id>", methods=["GET"])
@@ -306,7 +345,7 @@ def get_monitoring_doc_details(doc_id):
                 if key in display_raw:
                     ordered_data.append({"field": key, "value": display_raw[key]})
 
-        # 🔁 NEW: stream PDF from DB, not filesystem
+        # ðŸ” NEW: stream PDF from DB, not filesystem
         # Build absolute URL to our streaming endpoint so it works in iframe
         base_url = request.host_url.rstrip("/")
         file_url = f"{base_url}/api/monitoring/{r_doc_id}/file"
@@ -321,7 +360,7 @@ def get_monitoring_doc_details(doc_id):
                         "client_name": client_name,
                         "doc_type": doc_type,
                         "uploaded_on": str(uploaded_on),
-                        "file_url": file_url,  # ⬅ iframe will load from DB
+                        "file_url": file_url,  # â¬… iframe will load from DB
                         "data_extraction_status": data_extraction_status,
                         "erp_entry_status": erp_entry_status,
                     },
@@ -331,7 +370,7 @@ def get_monitoring_doc_details(doc_id):
         ), 200
 
     except Exception as e:
-        print("❌ Monitoring Doc Fetch Error:", str(e))
+        print("âŒ Monitoring Doc Fetch Error:", str(e))
         traceback.print_exc()
         if conn:
             release_connection(conn)

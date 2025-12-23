@@ -66,7 +66,7 @@ export default function Monitoring() {
     return "Invoice";
   };
 
-  // ✅ Helper to get local date in YYYY-MM-DD format (avoids UTC timezone shift)
+  // âœ… Helper to get local date in YYYY-MM-DD format (avoids UTC timezone shift)
   const getLocalDateString = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -103,7 +103,7 @@ export default function Monitoring() {
       const res = await api.get("/api/clients");
       setClients(res.data?.data || []);
     } catch (err) {
-      console.error("âŒ Error fetching clients:", err);
+      console.error("Ã¢Å’ Error fetching clients:", err);
     }
   };
 
@@ -147,11 +147,11 @@ export default function Monitoring() {
         });
       } else {
         setDocs(sortedData);
-        setMessage(`✅ Loaded ${sortedData.length} document(s).`);
+        setMessage(`âœ… Loaded ${sortedData.length} document(s).`);
       }
     } catch (err) {
-      console.error("❌ Error fetching monitoring data:", err);
-      if (!silent) setMessage("❌ Failed to load monitoring data.");
+      console.error("âŒ Error fetching monitoring data:", err);
+      if (!silent) setMessage("âŒ Failed to load monitoring data.");
     } finally {
       if (!silent) setLoading(false);
     }
@@ -180,7 +180,7 @@ export default function Monitoring() {
     return <span className={`inline-block px-2 py-1 rounded text-sm font-medium whitespace-nowrap ${colorClass}`}>{status}</span>;
   };
 
-  // ðŸ‘‡ Special badge rules for ERP Entry
+  // Ã°Å¸â€˜â€¡ Special badge rules for ERP Entry
   const ErpBadge = ({ status }) => {
     const raw = (status || "").toString();
     const s = raw.toLowerCase().trim();
@@ -396,24 +396,49 @@ export default function Monitoring() {
       {/* Table Container - with explicit width constraint */}
       <div style={{ width: 'calc(100vw - 320px)', maxWidth: '100%' }}>
         <div className="overflow-x-auto overflow-y-auto max-h-[600px] bg-white shadow rounded-lg" style={{ scrollbarWidth: 'thin' }}>
-          <table className="border-collapse" style={{ tableLayout: 'fixed', minWidth: '1300px' }}>
+          <table className="border-collapse" style={{ tableLayout: 'fixed', minWidth: '1800px' }}>
             <thead>
-              <tr className="bg-indigo-50 text-gray-700 text-left">
+              <tr className="bg-indigo-50 text-gray-700 text-left text-xs">
                 <th className="p-3 border-b" style={{ width: '50px' }}>#</th>
-                <th className="p-3 border-b" style={{ width: '140px' }}>Client</th>
-                <th className="p-3 border-b" style={{ width: '120px' }}>Invoice</th>
-                <th className="p-3 border-b" style={{ width: '130px' }}>Uploaded On</th>
-                <th className="p-3 border-b" style={{ width: '130px' }}>Updated On</th>
-                <th className="p-3 border-b" style={{ width: '140px' }}>Data Extraction</th>
-                <th className="p-3 border-b" style={{ width: '160px' }}>Consignment Entry</th>
-                <th className="p-3 border-b whitespace-nowrap" style={{ width: '130px' }}>Vehicle Hire</th>
-                <th className="p-3 border-b" style={{ width: '130px' }}>Overall Status</th>
+                <th className="p-3 border-b" style={{ width: '120px' }}>Client</th>
+                <th className="p-3 border-b" style={{ width: '100px' }}>Invoice</th>
+                <th className="p-3 border-b" style={{ width: '120px' }}>Uploaded On</th>
+
+                {/* Data Extraction Section */}
+                <th className="p-3 border-b bg-blue-50" colSpan="4" style={{ textAlign: 'center', fontWeight: 'bold' }}>Data Extraction</th>
+
+                {/* Consignment Entry Section */}
+                <th className="p-3 border-b bg-green-50" colSpan="4" style={{ textAlign: 'center', fontWeight: 'bold' }}>Consignment Entry</th>
+
+                <th className="p-3 border-b whitespace-nowrap" style={{ width: '110px' }}>Vehicle Hire</th>
+                <th className="p-3 border-b" style={{ width: '110px' }}>Overall Status</th>
+              </tr>
+              <tr className="bg-indigo-50 text-gray-700 text-left text-xs">
+                <th className="p-2 border-b"></th>
+                <th className="p-2 border-b"></th>
+                <th className="p-2 border-b"></th>
+                <th className="p-2 border-b"></th>
+
+                {/* Data Extraction Subheaders */}
+                <th className="p-2 border-b bg-blue-50" style={{ width: '100px' }}>Status</th>
+                <th className="p-2 border-b bg-blue-50" style={{ width: '60px' }}>Start</th>
+                <th className="p-2 border-b bg-blue-50" style={{ width: '60px' }}>End</th>
+                <th className="p-2 border-b bg-blue-50" style={{ width: '70px' }}>Time (min)</th>
+
+                {/* Consignment Entry Subheaders */}
+                <th className="p-2 border-b bg-green-50" style={{ width: '100px' }}>Status</th>
+                <th className="p-2 border-b bg-green-50" style={{ width: '60px' }}>Start</th>
+                <th className="p-2 border-b bg-green-50" style={{ width: '60px' }}>End</th>
+                <th className="p-2 border-b bg-green-50" style={{ width: '70px' }}>Time (min)</th>
+
+                <th className="p-2 border-b"></th>
+                <th className="p-2 border-b"></th>
               </tr>
             </thead>
             <tbody>
               {docs.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="text-center p-4 text-gray-500 italic">
+                  <td colSpan="14" className="text-center p-4 text-gray-500 italic">
                     No records found
                   </td>
                 </tr>
@@ -423,7 +448,7 @@ export default function Monitoring() {
                   const id = doc.id || doc.doc_id;
 
                   return (
-                    <tr key={id ?? index} className="hover:bg-gray-50">
+                    <tr key={id ?? index} className="hover:bg-gray-50 text-sm">
                       <td className="p-3 border-b">{index + 1}</td>
                       <td className="p-3 border-b">{doc.client_name}</td>
 
@@ -447,15 +472,34 @@ export default function Monitoring() {
                         </a>
                       </td>
 
-                      <td className="p-3 border-b">{formatDateTime(doc.uploaded_on)}</td>
-                      <td className="p-3 border-b">{formatDateTime(doc.updated_at)}</td>
-                      <td className="p-3 border-b">
+                      <td className="p-3 border-b text-xs">{formatDateTime(doc.uploaded_on)}</td>
+
+                      {/* Data Extraction Columns */}
+                      <td className="p-2 border-b bg-blue-50">
                         <StatusBadge status={doc.data_extraction_status} />
                       </td>
+                      <td className="p-2 border-b bg-blue-50 text-center text-xs">
+                        {doc.data_extraction_start_time || '-'}
+                      </td>
+                      <td className="p-2 border-b bg-blue-50 text-center text-xs">
+                        {doc.data_extraction_end_time || '-'}
+                      </td>
+                      <td className="p-2 border-b bg-blue-50 text-center text-xs font-semibold">
+                        {doc.data_extraction_time_consumed ? `${doc.data_extraction_time_consumed}m` : '-'}
+                      </td>
 
-                      {/* ERP Entry with special colors */}
-                      <td className="p-3 border-b">
+                      {/* Consignment Entry Columns */}
+                      <td className="p-2 border-b bg-green-50">
                         <ErpBadge status={doc.erp_entry_status} />
+                      </td>
+                      <td className="p-2 border-b bg-green-50 text-center text-xs">
+                        {doc.erp_entry_start_time || '-'}
+                      </td>
+                      <td className="p-2 border-b bg-green-50 text-center text-xs">
+                        {doc.erp_entry_end_time || '-'}
+                      </td>
+                      <td className="p-2 border-b bg-green-50 text-center text-xs font-semibold">
+                        {doc.erp_entry_time_consumed ? `${doc.erp_entry_time_consumed}m` : '-'}
                       </td>
 
                       {/* Vehicle Hire Status */}
