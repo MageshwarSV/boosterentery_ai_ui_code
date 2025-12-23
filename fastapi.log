@@ -1,0 +1,14 @@
+/app/watch_and_send.py:98: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator("doc_name")
+INFO:     Started server process [8]
+INFO:     Waiting for application startup.
+INFO:doc_processing_log_dynamic:Lifespan startup: init pool and resolve schema/columns
+INFO:doc_processing_log_dynamic:DB pool created
+INFO:doc_processing_log_dynamic:Connected to DB=mydb user=sql_developer search_path=boostentryai
+INFO:doc_processing_log_dynamic:Resolved doc_processing_log at boostentryai.doc_processing_log
+INFO:doc_processing_log_dynamic:Resolved clients at boostentryai.clients
+INFO:doc_processing_log_dynamic:Resolved doc_formats at boostentryai.doc_formats
+INFO:doc_processing_log_dynamic:doc_processing_log columns discovered: ['doc_id', 'client_id', 'doc_format_id', 'doc_file_name', 'uploaded_on', 'uploaded_by', 'overall_status', 'data_extraction_status', 'erp_entry_status', 'manual_review_status', 'extracted_json', 'corrected_json', 'created_at', 'updated_at', 'saved_path', 'file_data', 'file_mime', 'file_size', 'vehicle_hire_status', 'owned_market', 'unloading_date', 'data_extraction_start_time', 'data_extraction_end_time', 'erp_entry_start_time', 'erp_entry_end_time']
+INFO:doc_processing_log_dynamic:Column map resolved: {'doc_id': 'doc_id', 'doc_name': 'doc_file_name', 'uploaded_on': 'uploaded_on', 'uploaded_by': 'uploaded_by', 'client_id': 'client_id', 'doc_format_id': 'doc_format_id', 'overall_status': 'overall_status', 'erp_entry_status': 'erp_entry_status', 'data_extraction_status': 'data_extraction_status', 'manual_review_status': 'manual_review_status', 'created_at': 'created_at', 'updated_at': 'updated_at', 'file_data': 'file_data', 'file_mime': 'file_mime', 'file_size': 'file_size', 'saved_path': 'saved_path'}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:30011 (Press CTRL+C to quit)

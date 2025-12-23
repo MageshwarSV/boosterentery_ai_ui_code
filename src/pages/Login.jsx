@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+// src/pages/Login.jsx
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 // Prefer env var; fallback to your Flask port
 const API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ||
   (typeof process !== "undefined" && process.env?.REACT_APP_API_URL) ||
-  "http://localhost:30010";
+  "http://103.14.123.44:30010";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,6 +18,13 @@ export default function Login() {
   const location = useLocation();
   const redirectTo = location.state?.from?.pathname || "/dashboard";
 
+  // If already logged in, bounce to dashboard
+  useEffect(() => {
+    if (localStorage.getItem("isLoggedIn") === "true") {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -26,23 +34,32 @@ export default function Login() {
       const res = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Trim email, keep password as-is
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data?.message || "Invalid email or password");
       }
 
-      // If you later return token/user, store here
-      // const data = await res.json();
-      // localStorage.setItem("auth", JSON.stringify(data));
-      await res.json().catch(() => ({})); // consume
-      // ✅ store login status
-    localStorage.setItem("isLoggedIn", "true");  
+      // ✅ Mark as logged-in and store user info for UX (optional)
+      localStorage.setItem("isLoggedIn", "true");
+      // record last activity timestamp so ProtectedRoute can enforce idle logout
+      try {
+        localStorage.setItem("lastActivity", String(Date.now()));
+      } catch (e) {
+        // ignore if localStorage unavailable
+      }
+      // store token if provided by backend
+      if (data?.token) {
+        localStorage.setItem("authToken", data.token);
+      }
+      if (data?.user) {
+        localStorage.setItem("user", JSON.stringify(data.user)); // {id,email,name}
+      }
 
+      // Go where the user originally wanted
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.message || "Login failed");

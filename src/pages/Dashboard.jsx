@@ -20,9 +20,17 @@ export default function Dashboard() {
   const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // ✅ Initialize with today
+  // ✅ Helper to get local date in YYYY-MM-DD format (avoids UTC timezone shift)
+  const getLocalDateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // ✅ Initialize with today (local time)
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDateString(new Date());
     setFromDate(today);
     setToDate(today);
     fetchClients();
@@ -80,41 +88,41 @@ export default function Dashboard() {
 
     switch (value) {
       case "today":
-        from = to = today.toISOString().split("T")[0];
+        from = to = getLocalDateString(today);
         break;
       case "yesterday":
         const y = new Date(today);
         y.setDate(today.getDate() - 1);
-        from = to = y.toISOString().split("T")[0];
+        from = to = getLocalDateString(y);
         break;
       case "last7":
         const s7 = new Date(today);
         s7.setDate(today.getDate() - 7);
-        from = s7.toISOString().split("T")[0];
-        to = today.toISOString().split("T")[0];
+        from = getLocalDateString(s7);
+        to = getLocalDateString(today);
         break;
       case "thisMonth":
         const sm = new Date(today.getFullYear(), today.getMonth(), 1);
-        from = sm.toISOString().split("T")[0];
-        to = today.toISOString().split("T")[0];
+        from = getLocalDateString(sm);
+        to = getLocalDateString(today);
         break;
       case "lastMonth":
         const slm = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const elm = new Date(today.getFullYear(), today.getMonth(), 0);
-        from = slm.toISOString().split("T")[0];
-        to = elm.toISOString().split("T")[0];
+        from = getLocalDateString(slm);
+        to = getLocalDateString(elm);
         break;
       case "last30":
         const s30 = new Date(today);
         s30.setDate(today.getDate() - 30);
-        from = s30.toISOString().split("T")[0];
-        to = today.toISOString().split("T")[0];
+        from = getLocalDateString(s30);
+        to = getLocalDateString(today);
         break;
       case "last90":
         const s90 = new Date(today);
         s90.setDate(today.getDate() - 90);
-        from = s90.toISOString().split("T")[0];
-        to = today.toISOString().split("T")[0];
+        from = getLocalDateString(s90);
+        to = getLocalDateString(today);
         break;
       default:
         from = "";
@@ -126,22 +134,56 @@ export default function Dashboard() {
   };
 
   const StatusBadge = ({ status }) => {
-    let colorClass = "bg-gray-100 text-gray-700";
-    if (status?.toLowerCase().includes("completed"))
-      colorClass = "bg-green-100 text-green-700";
-    else if (status?.toLowerCase().includes("progress"))
-      colorClass = "bg-yellow-100 text-yellow-700";
-    else if (status?.toLowerCase().includes("failed"))
-      colorClass = "bg-red-100 text-red-700";
-    else if (status?.toLowerCase().includes("human"))
-      colorClass = "bg-indigo-100 text-indigo-700";
+    const s = (status || "").toString().toLowerCase();
+    if (s.includes("duplicate")) {
+      return (
+        <span
+          className="px-3 py-1 rounded text-sm font-medium border"
+          style={{ backgroundColor: "#fef9c2", color: "#92400e", borderColor: "#f7e7a8" }}
+        >
+          {status}
+        </span>
+      );
+    }
 
-    return (
-      <span className={`px-3 py-1 rounded text-sm font-medium ${colorClass}`}>
-        {status}
-      </span>
-    );
+    // Do not show INPROGRESS badges in Recent Uploads (per UX request)
+    if (s === "inprogress" || s.includes("in progress") || s.includes("inprogress")) {
+      return null;
+    }
+
+    let colorClass = "bg-gray-100 text-gray-700";
+    if (s.includes("completed")) colorClass = "bg-green-100 text-green-700";
+    else if (s.includes("progress")) colorClass = "bg-yellow-100 text-yellow-700";
+    else if (s.includes("failed")) colorClass = "bg-red-100 text-red-700";
+    else if (s.includes("human")) colorClass = "bg-indigo-100 text-indigo-700";
+
+    return <span className={`px-3 py-1 rounded text-sm font-medium ${colorClass}`}>{status}</span>;
   };
+
+  const formatDateTime = (timestamp) => {
+    const date = new Date(timestamp);
+    if (isNaN(date)) return timestamp;
+    return date.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  // Robust numeric extractor for KPI values — handles strings and alternative keys
+  const getNumeric = (v) => {
+    if (v === null || v === undefined) return 0;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  // Some backends may return different keys (duplicate, duplicates, duplicate_count)
+  const duplicateValue = getNumeric(
+    summary.duplicate ?? summary.failed ?? summary.duplicates ?? summary.duplicate_count ?? summary["Duplicate"] ?? 0
+  );
 
   return (
     <div className="p-6">
@@ -221,12 +263,11 @@ export default function Dashboard() {
       ) : (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             {[
               { title: "Total Documents", value: summary.total_docs, color: "bg-indigo-100 text-indigo-700" },
-              { title: "In Progress", value: summary.in_progress, color: "bg-yellow-100 text-yellow-700" },
               { title: "Completed", value: summary.completed, color: "bg-green-100 text-green-700" },
-              { title: "Failed", value: summary.failed, color: "bg-red-100 text-red-700" },
+              { title: "Duplicate", value: duplicateValue, color: "bg-yellow-100 text-yellow-700" },
               { title: "Human Review", value: summary.human_review, color: "bg-purple-100 text-purple-700" },
             ].map((card, i) => (
               <div
@@ -286,13 +327,7 @@ export default function Dashboard() {
                         <td className="p-3 border-b">{doc.client}</td>
                         <td className="p-3 border-b">{doc.doc_type}</td>
                         <td className="p-3 border-b">
-                          {new Date(doc.uploaded_on).toLocaleString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hour12: true,
-                          })}
+                          {formatDateTime(doc.uploaded_on)}
                         </td>
                         <td className="p-3 border-b">
                           <StatusBadge status={doc.status} />

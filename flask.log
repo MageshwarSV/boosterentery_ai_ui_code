@@ -1,0 +1,16 @@
+✅ Connected to Remote PostgreSQL (103.14.123.44)
+✅ Environment: LOCAL
+✅ Upload folder: /app/uploaded_docs
+✅ WhatsApp reminder scheduler started (checks every 30 mins, reminds after 3 hours)
+
+📱 WhatsApp integration is active!
+   - Webhook: /api/whatsapp/webhook
+   - Reminders: Every 3 hours for pending sessions
+
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:30010
+ * Running on http://172.17.0.2:30010
+[33mPress CTRL+C to quit[0m

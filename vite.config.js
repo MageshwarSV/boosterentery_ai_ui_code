@@ -7,5 +7,15 @@ export default defineConfig({
   server: {
     port: 30012,   // 👈 change default port
     host: true,    // 👈 allows external access (e.g. http://103.14.123.44:30012)
+    allowedHosts: [
+      'hoselike-tonetically-kylah.ngrok-free.dev', // ngrok domain
+      'boostentry-ui.loca.lt', // localtunnel domain
+    ],
+    proxy: {
+      '/api': {
+        target: 'http://103.14.123.44:30010',
+        changeOrigin: true,
+      },
+    },
   },
 })

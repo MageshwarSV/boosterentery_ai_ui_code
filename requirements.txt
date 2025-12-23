@@ -17,8 +17,30 @@ python-dotenv==1.0.1
 requests==2.32.3
 
 pillow
+numpy
 
 bcrypt
+
+# PDF creation for image uploads (works with pdf2image/Poppler)
+reportlab
+
+# OCR for creating searchable PDFs
+pytesseract
+
+# Telegram client for messaging
+telethon==1.36.0
+
+# Background scheduler for WhatsApp reminders
+APScheduler==3.10.4
+
+# FastAPI for watch_and_send.py (file upload processor)
+fastapi
+uvicorn
+python-multipart
+psycopg2-binary
+
+# OCR for adding text layer to image PDFs (faster extraction)
+ocrmypdf
 
 
 ########################################

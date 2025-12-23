@@ -42,7 +42,19 @@ def dashboard_summary():
                 COUNT(*) AS total_docs,
                 COUNT(*) FILTER (WHERE d.overall_status ILIKE 'In Progress%%') AS in_progress,
                 COUNT(*) FILTER (WHERE d.overall_status ILIKE 'Completed%%') AS completed,
-                COUNT(*) FILTER (WHERE d.overall_status ILIKE 'Failed%%' OR d.overall_status ILIKE 'Error%%') AS failed,
+                -- Keep legacy 'failed' bucket (overall_status) but exclude explicit Duplicate labels
+                COUNT(*) FILTER (
+                    WHERE (d.overall_status ILIKE 'Failed%%' OR d.overall_status ILIKE 'Error%%')
+                    AND NOT (d.overall_status ILIKE 'Duplicate%%')
+                ) AS failed,
+                -- Count duplicate occurrences reported either by overall_status OR by ERP columns
+                -- use trimmed ERP status to match values like 'Duplicate ' with trailing spaces
+                COUNT(*) FILTER (
+                    WHERE (
+                        d.overall_status ILIKE 'Duplicate%%'
+                        OR TRIM(COALESCE(d.erp_entry_status::text, '')) ILIKE 'Duplicate%%'
+                    )
+                ) AS duplicate,
                 COUNT(*) FILTER (
                     WHERE (d.data_extraction_status ILIKE 'Completed%%' OR d.data_extraction_status ILIKE 'Success%%')
                     AND (d.erp_entry_status ILIKE 'Failed%%' OR d.erp_entry_status ILIKE 'Error%%')
@@ -58,7 +70,8 @@ def dashboard_summary():
             "in_progress": summary_row[1] or 0,
             "completed": summary_row[2] or 0,
             "failed": summary_row[3] or 0,
-            "human_review": summary_row[4] or 0,
+            "duplicate": summary_row[4] or 0,
+            "human_review": summary_row[5] or 0,
         }
 
         # --- 2️⃣ Trend chart: docs per day (last 7 or filtered) ---
@@ -81,7 +94,8 @@ def dashboard_summary():
                 f.doc_type,
                 d.doc_file_name,
                 d.uploaded_on,
-                d.overall_status
+                d.overall_status,
+                d.erp_entry_status
             FROM doc_processing_log d
             LEFT JOIN clients c ON d.client_id = c.client_id
             LEFT JOIN doc_formats f ON d.doc_format_id = f.doc_format_id
@@ -94,12 +108,30 @@ def dashboard_summary():
 
         recent_docs = []
         for r in recent_rows:
+            client_name = r[0]
+            doc_type = r[1]
+            file_name = r[2]
+            uploaded_on = r[3].strftime("%Y-%m-%d %H:%M:%S") if r[3] else None
+            overall_status = r[4]
+            erp_status1 = r[5]
+
+            # prefer trimmed overall_status; then check erp_entry (alternate column), then erp_entry_status
+            chosen_status = None
+            if overall_status and str(overall_status).strip() != "":
+                chosen_status = str(overall_status).strip()
+            else:
+                # check alternate ERP columns
+                for cand in (erp_status1,):
+                    if cand and str(cand).strip() != "":
+                        chosen_status = str(cand).strip()
+                        break
+
             recent_docs.append({
-                "client": r[0],
-                "doc_type": r[1],
-                "file_name": r[2],
-                "uploaded_on": r[3].strftime("%Y-%m-%d %H:%M:%S") if r[3] else None,
-                "status": r[4],
+                "client": client_name,
+                "doc_type": doc_type,
+                "file_name": file_name,
+                "uploaded_on": uploaded_on,
+                "status": chosen_status,
             })
 
         release_connection(conn)

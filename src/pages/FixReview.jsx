@@ -1,10 +1,12 @@
 // FixReview.jsx
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
 export default function FixReview() {
   const { id } = useParams();
+  const navigate = useNavigate();
+
   const [doc, setDoc] = useState(null);
   const [formData, setFormData] = useState({});
   const [validationStatus, setValidationStatus] = useState(null);
@@ -12,6 +14,11 @@ export default function FixReview() {
   const [failedMap, setFailedMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+
+  // --- success overlay state ---
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const [overlayMsg, setOverlayMsg] = useState("");
+  const overlayTimerRef = useRef(null);
 
   const preferredOrder = [
     "Branch",
@@ -35,10 +42,7 @@ export default function FixReview() {
     "GoodsType",
   ];
 
-  const normalizeKey = (s) => {
-    if (s === null || s === undefined) return "";
-    return String(s).replace(/[^A-Za-z0-9]/g, "").toLowerCase();
-  };
+  const normalizeKey = (s) => (s == null ? "" : String(s).replace(/[^A-Za-z0-9]/g, "").toLowerCase());
 
   const variantsFor = (canonical) => {
     const v = [canonical];
@@ -51,10 +55,8 @@ export default function FixReview() {
   const findKeyInSource = (sourceObj, canonicalKey) => {
     if (!sourceObj || typeof sourceObj !== "object") return null;
     const candidates = variantsFor(canonicalKey).map((s) => normalizeKey(s));
-    const sourceKeys = Object.keys(sourceObj || {});
-    for (const sk of sourceKeys) {
-      const n = normalizeKey(sk);
-      if (candidates.includes(n)) return sk;
+    for (const sk of Object.keys(sourceObj || {})) {
+      if (candidates.includes(normalizeKey(sk))) return sk;
     }
     return null;
   };
@@ -66,25 +68,15 @@ export default function FixReview() {
         const res = await api.get(`/api/human_review/${id}`);
         if (!res?.data) throw new Error("Invalid API response");
         const payload = res.data.data ?? res.data;
-
         const docObj = payload.doc ?? payload;
         setDoc(docObj);
 
         const corrected = payload.corrected_data ?? {};
-        const extracted =
-          payload.extracted_data ??
-          payload?.raw_extracted ??
-          {};
-        const sourceData =
-          corrected && Object.keys(corrected).length > 0
-            ? corrected
-            : extracted;
+        const extracted = payload.extracted_data ?? payload?.raw_extracted ?? {};
+        const sourceData = corrected && Object.keys(corrected).length > 0 ? corrected : extracted;
 
         const validationFromTop =
-          payload.ValidationStatus ||
-          payload.validation ||
-          payload.validationStatus ||
-          null;
+          payload.ValidationStatus || payload.validation || payload.validationStatus || null;
 
         let foundValidation = validationFromTop;
         if (!foundValidation && sourceData && typeof sourceData === "object") {
@@ -97,7 +89,6 @@ export default function FixReview() {
             }
           }
         }
-
         setValidationStatus(foundValidation || null);
 
         const ordered = {};
@@ -105,10 +96,8 @@ export default function FixReview() {
           const presentKey = findKeyInSource(sourceData, key);
           if (presentKey) ordered[key] = sourceData[presentKey];
         }
-
         setFormData(ordered || {});
 
-        // 🔴 Validation failure map — keep this logic for red highlight
         if (foundValidation && Array.isArray(foundValidation.FailedFields)) {
           const setS = new Set();
           const map = {};
@@ -137,39 +126,42 @@ export default function FixReview() {
     };
 
     fetchDoc();
+    return () => {
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+    };
   }, [id]);
 
-  const handleChange = (key, value) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+  const handleChange = (key, value) => setFormData((prev) => ({ ...prev, [key]: value }));
+
+  // Show success overlay and redirect after N ms
+  const showSuccessOverlay = (msg, durationMs = 4000, redirectPath = "/monitoring") => {
+    setOverlayMsg(msg);
+    setOverlayOpen(true);
+    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+    overlayTimerRef.current = setTimeout(() => {
+      setOverlayOpen(false);
+      overlayTimerRef.current = null;
+      navigate(redirectPath);
+    }, durationMs);
   };
 
   const handleSave = async () => {
     try {
-      await api.post(`/api/human_review/update_corrected/${id}`, {
-        corrected_json: formData,
-      });
+      await api.post(`/api/human_review/update_corrected/${id}`, { corrected_json: formData });
       setMessage("Saved");
+      showSuccessOverlay("Values updated successfully.", 4000, "/monitoring");
     } catch (e) {
       console.error("Save failed:", e);
       setMessage("Save failed");
+      // Optional: error overlay; keeping simple toast-less behavior
     }
   };
 
-  const isFailed = (fieldLabel) => {
-    const n = normalizeKey(fieldLabel);
-    return failedSet.has(n);
-  };
-  const getReason = (fieldLabel) => {
-    const n = normalizeKey(fieldLabel);
-    return failedMap[n] ?? null;
-  };
+  const isFailed = (fieldLabel) => failedSet.has(normalizeKey(fieldLabel));
+  const getReason = (fieldLabel) => failedMap[normalizeKey(fieldLabel)] ?? null;
 
-  if (loading) {
-    return <div className="p-10 text-gray-600 text-center">Loading document...</div>;
-  }
-  if (!doc) {
-    return <div className="p-10 text-gray-600 text-center">No document found.</div>;
-  }
+  if (loading) return <div className="p-10 text-gray-600 text-center">Loading document...</div>;
+  if (!doc) return <div className="p-10 text-gray-600 text-center">No document found.</div>;
 
   const StatusBadge = ({ label, status }) => {
     let color =
@@ -187,6 +179,64 @@ export default function FixReview() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      {/* Inline keyframes for buttery-smooth animations */}
+      <style>{`
+        @keyframes overlayFadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes cardZoomIn {
+          0% { transform: scale(0.85); opacity: 0 }
+          60% { transform: scale(1.02); opacity: 1 }
+          100% { transform: scale(1); opacity: 1 }
+        }
+        @keyframes drawCircle { from { stroke-dashoffset: 175 } to { stroke-dashoffset: 0 } }
+        @keyframes drawCheck  { from { stroke-dashoffset: 50 }  to { stroke-dashoffset: 0 } }
+
+        .anim-overlay { animation: overlayFadeIn 240ms ease-out forwards; }
+        .anim-card    { animation: cardZoomIn 360ms cubic-bezier(.18,.89,.32,1.28) forwards; }
+
+        .tick-circle  { stroke-dasharray: 175; stroke-dashoffset: 175; animation: drawCircle 600ms ease-out forwards 120ms; }
+        .tick-path    { stroke-dasharray: 50;  stroke-dashoffset: 50;  animation: drawCheck  500ms ease-out forwards 380ms; }
+      `}</style>
+
+      {/* Success Overlay */}
+      {overlayOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 anim-overlay" />
+          {/* Card */}
+          <div className="relative z-[101] anim-card bg-white rounded-2xl shadow-2xl p-8 w-[92%] max-w-md text-center">
+            {/* SVG Tick */}
+            <div className="mx-auto mb-4 w-24 h-24">
+              <svg viewBox="0 0 80 80" className="w-full h-full">
+                <circle
+                  className="tick-circle"
+                  cx="40"
+                  cy="40"
+                  r="28"
+                  fill="none"
+                  stroke="#16a34a"   /* Tailwind green-600 */
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                />
+                <path
+                  className="tick-path"
+                  d="M28 41 L37 50 L54 32"
+                  fill="none"
+                  stroke="#16a34a"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+
+            <h3 className="text-xl font-semibold text-gray-900">Success</h3>
+            <p className="mt-1 text-gray-600">{overlayMsg || "Values updated successfully."}</p>
+
+            <p className="mt-4 text-sm text-gray-500">Redirecting to Monitoring…</p>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="bg-white shadow rounded-xl p-5 mb-6 flex flex-wrap items-center justify-between">
         <div>
@@ -208,7 +258,11 @@ export default function FixReview() {
         {/* LEFT - PDF */}
         <div className="relative w-full h-[90vh] bg-gray-100 rounded-xl shadow-inner overflow-hidden">
           {doc.file_url ? (
-            <iframe src={doc.file_url} title="PDF Preview" className="absolute inset-0 w-full h-full border-none rounded-xl" />
+            <iframe
+              src={doc.file_url}
+              title="PDF Preview"
+              className="absolute inset-0 w-full h-full border-none rounded-xl"
+            />
           ) : (
             <div className="p-6">PDF not available</div>
           )}
@@ -241,7 +295,6 @@ export default function FixReview() {
             ))}
           </div>
 
-          {/* ✅ Only Save button retained */}
           <div className="mt-6 flex gap-3">
             <button
               onClick={handleSave}
