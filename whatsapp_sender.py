@@ -3,7 +3,7 @@ import requests
 import json
 
 # Askeva API Configuration
-ASKEVA_API_KEY = "099cedfda84c2f24adbf55988b6255517f97afa2011094e7b4e5bd7f19cc2c007ba52f9b2287b224f77b982a27221f11f8af30b0db86323d04beab45794649cf"
+ASKEVA_API_KEY = "c0172afb175286d90590263a4fcaab0083e2211ab7393e7e3c2526634c0d9be331ce3e7a306fc706a7fdad6168809f4e1b71309d445abb9e7b884b5918614d7a"
 ASKEVA_API_URL = "https://backend.askeva.io/v1/message/send-message"
 
 
@@ -80,7 +80,7 @@ def send_vehicle_hire_request_whatsapp(phone_no, manifest_no, doc_id):
     Variable: manifestno
     """
     # Use the approved template with manifestno variable
-    return send_whatsapp_template(phone_no, "vehiclehireadvance", [manifest_no])
+    return send_whatsapp_template(phone_no, "vehicle_hire123", [manifest_no])
 
 
 def send_whatsapp_text(phone_no, message):
